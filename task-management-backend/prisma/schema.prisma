@@ -36,7 +36,6 @@ model Task {
   status         TaskStatus  @default(PENDING)
   assignedUserId String
   assignedUser   User        @relation("TaskAssignment", fields: [assignedUserId], references: [id])
-  auditLogs      AuditLog[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 }
@@ -47,7 +46,6 @@ model AuditLog {
   actor        User     @relation(fields: [actorId], references: [id])
   actionType   String
   targetTaskId String?
-  targetTask   Task?    @relation(fields: [targetTaskId], references: [id], onDelete: SetNull)
   dataBefore   Json?
   dataAfter    Json?
   createdAt    DateTime @default(now())

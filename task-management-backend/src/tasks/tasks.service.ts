@@ -11,12 +11,30 @@ interface Actor {
   role: Role;
 }
 
+export interface PaginatedResult<T> {
+  data: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 const TASK_AUDIT_ACTION = {
   CREATED: 'TASK_CREATED',
   UPDATED: 'TASK_UPDATED',
   DELETED: 'TASK_DELETED',
   STATUS_CHANGED: 'TASK_STATUS_CHANGED',
   ASSIGNMENT_CHANGED: 'TASK_ASSIGNMENT_CHANGED',
+} as const;
+
+const TASK_WITH_ASSIGNEE_INCLUDE = {
+  assignedUser: {
+    select: {
+      id: true,
+      email: true,
+      name: true,
+    },
+  },
 } as const;
 
 function mapStatusToPrisma(status?: TaskStatusDto): TaskStatus | undefined {
@@ -60,6 +78,7 @@ export class TasksService {
         description: createTaskDto.description,
         assignedUserId,
       },
+      include: TASK_WITH_ASSIGNEE_INCLUDE,
     });
 
     await this.auditService.createLog(
@@ -73,19 +92,37 @@ export class TasksService {
     return createdTask;
   }
 
-  findAll(actor: Actor) {
-    if (actor.role === Role.ADMIN) {
-      return this.prisma.task.findMany({ orderBy: { createdAt: 'desc' } });
-    }
+  async findAll(actor: Actor, page = 1, limit = 10): Promise<PaginatedResult<unknown>> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(100, Math.max(1, limit));
+    const skip = (safePage - 1) * safeLimit;
+    const where = actor.role === Role.ADMIN ? undefined : { assignedUserId: actor.userId };
 
-    return this.prisma.task.findMany({
-      where: { assignedUserId: actor.userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.task.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: TASK_WITH_ASSIGNEE_INCLUDE,
+        skip,
+        take: safeLimit,
+      }),
+      this.prisma.task.count({ where }),
+    ]);
+
+    return {
+      data,
+      page: safePage,
+      limit: safeLimit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+    };
   }
 
   async findOne(id: string, actor: Actor) {
-    const task = await this.prisma.task.findUnique({ where: { id } });
+    const task = await this.prisma.task.findUnique({
+      where: { id },
+      include: TASK_WITH_ASSIGNEE_INCLUDE,
+    });
 
     if (!task) {
       throw new NotFoundException('Task not found');
@@ -138,6 +175,7 @@ export class TasksService {
             }
           : {}),
       },
+      include: TASK_WITH_ASSIGNEE_INCLUDE,
     });
 
     const logsToCreate: Array<Promise<unknown>> = [];
@@ -216,14 +254,18 @@ export class TasksService {
 
     const before = await this.findOne(id, actor);
 
-    await this.auditService.createLog(
-      actor.userId,
-      TASK_AUDIT_ACTION.DELETED,
-      before,
-      null,
-      id,
-    );
-    await this.prisma.task.delete({ where: { id } });
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.auditLog.create({
+        data: {
+          actorId: actor.userId,
+          actionType: TASK_AUDIT_ACTION.DELETED,
+          targetTaskId: id,
+          dataBefore: before as object,
+        },
+      });
+
+      await transaction.task.delete({ where: { id } });
+    });
 
     return { message: 'Task deleted successfully' };
   }

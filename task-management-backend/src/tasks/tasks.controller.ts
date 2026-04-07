@@ -1,14 +1,17 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Inject,
   Param,
   ParseEnumPipe,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -37,8 +40,12 @@ export class TasksController {
   }
 
   @Get()
-  findAll(@Req() req: any) {
-    return this.tasksService.findAll(req.user);
+  findAll(
+    @Req() req: any,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.tasksService.findAll(req.user, page, limit);
   }
 
   @Get(':id')

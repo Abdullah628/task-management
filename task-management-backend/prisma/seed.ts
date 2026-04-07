@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
   const userPasswordHash = await bcrypt.hash('User@123', 10);
+  const userEmail = 'rafi@example.com';
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: 'admin@example.com' },
@@ -31,18 +32,18 @@ async function main() {
   );
 
   const existingUser = await prisma.user.findUnique({
-    where: { email: 'user@example.com' },
+    where: { email: userEmail },
   });
 
   await prisma.user.upsert({
-    where: { email: 'user@example.com' },
+    where: { email: userEmail },
     update: {
       passwordHash: userPasswordHash,
       role: Role.USER,
       name: 'Normal User',
     },
     create: {
-      email: 'user@example.com',
+      email: 'rafi@example.com',
       passwordHash: userPasswordHash,
       role: Role.USER,
       name: 'Normal User',
