@@ -24,3 +24,8 @@ export class UpdateTaskDto {
   @IsUUID()
   assignedUserId?: string;
 }
+
+export class UpdateTaskStatusDto {
+  @IsEnum(TaskStatusDto)
+  status!: TaskStatusDto;
+}

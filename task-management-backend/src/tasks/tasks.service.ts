@@ -11,6 +11,14 @@ interface Actor {
   role: Role;
 }
 
+const TASK_AUDIT_ACTION = {
+  CREATED: 'TASK_CREATED',
+  UPDATED: 'TASK_UPDATED',
+  DELETED: 'TASK_DELETED',
+  STATUS_CHANGED: 'TASK_STATUS_CHANGED',
+  ASSIGNMENT_CHANGED: 'TASK_ASSIGNMENT_CHANGED',
+} as const;
+
 function mapStatusToPrisma(status?: TaskStatusDto): TaskStatus | undefined {
   if (!status) {
     return undefined;
@@ -56,7 +64,7 @@ export class TasksService {
 
     await this.auditService.createLog(
       actor.userId,
-      'TASK_CREATED',
+      TASK_AUDIT_ACTION.CREATED,
       null,
       createdTask,
       String(createdTask.id),
@@ -103,6 +111,21 @@ export class TasksService {
       }
     }
 
+    if (
+      actor.role === Role.ADMIN &&
+      updateTaskDto.assignedUserId !== undefined &&
+      updateTaskDto.assignedUserId !== before.assignedUserId
+    ) {
+      const assignedUser = await this.prisma.user.findUnique({
+        where: { id: updateTaskDto.assignedUserId },
+        select: { id: true },
+      });
+
+      if (!assignedUser) {
+        throw new BadRequestException('Assigned user not found');
+      }
+    }
+
     const updatedTask = await this.prisma.task.update({
       where: { id },
       data: {
@@ -117,16 +140,71 @@ export class TasksService {
       },
     });
 
-    const actionType =
-      actor.role === Role.ADMIN ? 'TASK_UPDATED' : 'TASK_STATUS_UPDATED_BY_USER';
+    const logsToCreate: Array<Promise<unknown>> = [];
+    const hasGeneralTaskChanges =
+      before.title !== updatedTask.title ||
+      before.description !== updatedTask.description;
+    const hasStatusChange = before.status !== updatedTask.status;
+    const hasAssignmentChange = before.assignedUserId !== updatedTask.assignedUserId;
 
-    await this.auditService.createLog(
-      actor.userId,
-      actionType,
-      before,
-      updatedTask,
-      String(updatedTask.id),
-    );
+    if (hasGeneralTaskChanges) {
+      logsToCreate.push(
+        this.auditService.createLog(
+          actor.userId,
+          TASK_AUDIT_ACTION.UPDATED,
+          {
+            title: before.title,
+            description: before.description,
+          },
+          {
+            title: updatedTask.title,
+            description: updatedTask.description,
+          },
+          String(updatedTask.id),
+        ),
+      );
+    }
+
+    if (hasStatusChange) {
+      logsToCreate.push(
+        this.auditService.createLog(
+          actor.userId,
+          TASK_AUDIT_ACTION.STATUS_CHANGED,
+          { status: before.status },
+          {
+            status: updatedTask.status,
+            changedByRole: actor.role,
+          },
+          String(updatedTask.id),
+        ),
+      );
+    }
+
+    if (hasAssignmentChange) {
+      logsToCreate.push(
+        this.auditService.createLog(
+          actor.userId,
+          TASK_AUDIT_ACTION.ASSIGNMENT_CHANGED,
+          { assignedUserId: before.assignedUserId },
+          { assignedUserId: updatedTask.assignedUserId },
+          String(updatedTask.id),
+        ),
+      );
+    }
+
+    if (logsToCreate.length === 0) {
+      logsToCreate.push(
+        this.auditService.createLog(
+          actor.userId,
+          TASK_AUDIT_ACTION.UPDATED,
+          before,
+          updatedTask,
+          String(updatedTask.id),
+        ),
+      );
+    }
+
+    await Promise.all(logsToCreate);
 
     return updatedTask;
   }
@@ -138,7 +216,13 @@ export class TasksService {
 
     const before = await this.findOne(id, actor);
 
-    await this.auditService.createLog(actor.userId, 'TASK_DELETED', before, null, id);
+    await this.auditService.createLog(
+      actor.userId,
+      TASK_AUDIT_ACTION.DELETED,
+      before,
+      null,
+      id,
+    );
     await this.prisma.task.delete({ where: { id } });
 
     return { message: 'Task deleted successfully' };
