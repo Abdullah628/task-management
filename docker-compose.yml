@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: task_management_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: task_management_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d task_management_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./task-management-backend
+      target: build
+    container_name: task_management_migrate
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/task_management_db
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy && npm run seed"
+
+  backend:
+    build:
+      context: ./task-management-backend
+      target: runner
+    container_name: task_management_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/task_management_db
+      JWT_SECRET: change-this-in-production
+      JWT_EXPIRES_IN: 1d
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
+  frontend:
+    build:
+      context: ./task-management-frontend
+      target: runner
+    container_name: task_management_frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: 1
+    ports:
+      - '3001:3001'
+    depends_on:
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3001').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
+volumes:
+  postgres_data:
