@@ -13,7 +13,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=build /app/public ./public
+ENV PORT=3001
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 EXPOSE 3001
