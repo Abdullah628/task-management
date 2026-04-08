@@ -7,8 +7,8 @@ import { setSession } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,13 +34,14 @@ export default function LoginPage() {
     <main className="shell">
       <section className="panel" aria-label="Login form">
         <h1 style={{ textAlign: 'center', marginBottom: 22 }}>Login</h1>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="off">
           <div className="field">
             <label htmlFor="email">Email</label>
             <input
               id="email"
               className="input"
               type="email"
+              autoComplete="off"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
@@ -52,6 +53,7 @@ export default function LoginPage() {
               id="password"
               className="input"
               type="password"
+              autoComplete="off"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
