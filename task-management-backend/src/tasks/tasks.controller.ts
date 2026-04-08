@@ -1,13 +1,11 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Inject,
   Param,
   ParseEnumPipe,
-  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -26,6 +24,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '../auth/role.enum';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { AuthenticatedRequest } from '../common/types/authenticated-request.type';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
@@ -35,21 +35,17 @@ export class TasksController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  create(@Body() createTaskDto: CreateTaskDto, @Req() req: any) {
+  create(@Body() createTaskDto: CreateTaskDto, @Req() req: AuthenticatedRequest) {
     return this.tasksService.create(createTaskDto, req.user);
   }
 
   @Get()
-  findAll(
-    @Req() req: any,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-  ) {
-    return this.tasksService.findAll(req.user, page, limit);
+  findAll(@Req() req: AuthenticatedRequest, @Query() query: PaginationQueryDto) {
+    return this.tasksService.findAll(req.user, query.page, query.limit);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest) {
     return this.tasksService.findOne(id, req.user);
   }
 
@@ -59,7 +55,7 @@ export class TasksController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTaskDto: UpdateTaskDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.tasksService.update(id, updateTaskDto, req.user);
   }
@@ -70,7 +66,7 @@ export class TasksController {
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTaskStatusDto: UpdateTaskStatusDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.tasksService.update(id, updateTaskStatusDto, req.user);
   }
@@ -81,7 +77,7 @@ export class TasksController {
   updateStatusFromPath(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('status', new ParseEnumPipe(TaskStatusDto)) status: TaskStatusDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.tasksService.update(id, { status }, req.user);
   }
@@ -89,7 +85,7 @@ export class TasksController {
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest) {
     return this.tasksService.remove(id, req.user);
   }
 }

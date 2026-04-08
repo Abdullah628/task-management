@@ -4,23 +4,23 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
-  const userPasswordHash = await bcrypt.hash('User@123', 10);
-  const userEmail = 'rafi@example.com';
+  const adminPasswordHash = await bcrypt.hash('admin@123', 10);
+  const userPasswordHash = await bcrypt.hash('user@123', 10);
+  const userEmail = 'user@taskapp.com';
 
   const existingAdmin = await prisma.user.findUnique({
-    where: { email: 'admin@example.com' },
+    where: { email: 'admin@taskapp.com' },
   });
 
   await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
+    where: { email: 'admin@taskapp.com' },
     update: {
       passwordHash: adminPasswordHash,
       role: Role.ADMIN,
       name: 'System Admin',
     },
     create: {
-      email: 'admin@example.com',
+      email: 'admin@taskapp.com',
       passwordHash: adminPasswordHash,
       role: Role.ADMIN,
       name: 'System Admin',
@@ -43,7 +43,7 @@ async function main() {
       name: 'Normal User',
     },
     create: {
-      email: 'rafi@example.com',
+      email: 'user@taskapp.com',
       passwordHash: userPasswordHash,
       role: Role.USER,
       name: 'Normal User',

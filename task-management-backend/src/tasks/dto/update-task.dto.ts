@@ -1,4 +1,6 @@
+import { Transform } from 'class-transformer';
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsNotEmpty } from 'class-validator';
 
 export enum TaskStatusDto {
   PENDING = 'PENDING',
@@ -8,12 +10,16 @@ export enum TaskStatusDto {
 
 export class UpdateTaskDto {
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
+  @IsNotEmpty()
   @MaxLength(120)
   title?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
+  @IsNotEmpty()
   description?: string;
 
   @IsOptional()
@@ -21,6 +27,7 @@ export class UpdateTaskDto {
   status?: TaskStatusDto;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsUUID()
   assignedUserId?: string;
 }

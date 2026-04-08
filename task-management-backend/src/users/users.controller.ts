@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '../auth/role.enum';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { AuthenticatedRequest } from '../common/types/authenticated-request.type';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -13,17 +14,17 @@ export class UsersController {
   constructor(@Inject(UsersService) private readonly usersService: UsersService) {}
 
   @Get('me')
-  me(@Req() req: any) {
+  me(@Req() req: AuthenticatedRequest) {
     return this.usersService.getProfile(req.user.userId);
   }
 
   @Patch('me')
-  updateMe(@Req() req: any, @Body() updateProfileDto: UpdateProfileDto) {
+  updateMe(@Req() req: AuthenticatedRequest, @Body() updateProfileDto: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.userId, updateProfileDto.name);
   }
 
   @Patch('me/password')
-  changeMyPassword(@Req() req: any, @Body() changePasswordDto: ChangePasswordDto) {
+  changeMyPassword(@Req() req: AuthenticatedRequest, @Body() changePasswordDto: ChangePasswordDto) {
     return this.usersService.changePassword(
       req.user.userId,
       changePasswordDto.currentPassword,

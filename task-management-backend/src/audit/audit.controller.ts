@@ -1,9 +1,7 @@
 import {
   Controller,
-  DefaultValuePipe,
   Get,
   Inject,
-  ParseIntPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +10,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '../auth/role.enum';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('audit')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -20,10 +19,7 @@ export class AuditController {
 
   @Get()
   @Roles(Role.ADMIN)
-  findAll(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-  ) {
-    return this.auditService.findAll(page, limit);
+  findAll(@Query() query: PaginationQueryDto) {
+    return this.auditService.findAll(query.page, query.limit);
   }
 }

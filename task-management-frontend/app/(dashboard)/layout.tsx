@@ -1,78 +1,24 @@
-'use client';
+import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { ReactNode } from 'react';
+import { DashboardShell } from '@/components/DashboardShell';
+import { UserRole } from '@/lib/auth';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
-import { clearSession, getSessionFromStorage, UserRole } from '@/lib/auth';
+export const metadata: Metadata = {
+  title: 'Dashboard | Task Management',
+  description: 'Manage tasks, profile details, and admin audit logs.',
+};
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [isReady, setIsReady] = useState(false);
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('tm_token')?.value;
+  const roleCookie = cookieStore.get('tm_role')?.value;
 
-  useEffect(() => {
-    const session = getSessionFromStorage();
-
-    if (!session.token) {
-      router.replace('/login');
-      return;
-    }
-
-    setRole(session.role ?? 'USER');
-    setIsReady(true);
-  }, [router]);
-
-  const links = useMemo(() => {
-    const base = [
-      { href: '/tasks', label: 'My Tasks' },
-      { href: '/profile', label: 'Profile' },
-    ];
-    if (role === 'ADMIN') {
-      base.push({ href: '/audit', label: 'Audit Logs' });
-    }
-    return base;
-  }, [role]);
-
-  if (!isReady) {
-    return (
-      <main className="shell">
-        <p className="info">Loading dashboard...</p>
-      </main>
-    );
+  if (!token) {
+    redirect('/login');
   }
 
-  return (
-    <div className="dashboard">
-      <div className="dashboard-frame">
-        <aside className="sidebar">
-          <div className="sidebar-title">
-            {role === 'ADMIN' ? 'Admin Dashboard' : 'User Dashboard'}
-          </div>
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`sidebar-link ${pathname.startsWith(link.href) ? 'active' : ''}`}
-            >
-              {link.label}
-            </Link>
-          ))}
-          <div className="sidebar-footer">
-            <button
-              className="btn btn-ghost"
-              onClick={() => {
-                clearSession();
-                router.replace('/login');
-                router.refresh();
-              }}
-            >
-              Logout
-            </button>
-          </div>
-        </aside>
-        <main className="main">{children}</main>
-      </div>
-    </div>
-  );
+  const role: UserRole = roleCookie === 'ADMIN' ? 'ADMIN' : 'USER';
+  return <DashboardShell role={role}>{children}</DashboardShell>;
 }
